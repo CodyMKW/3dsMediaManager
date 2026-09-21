@@ -946,13 +946,21 @@
     // (the actual stereo file, containing a left-eye and right-eye JPEG back
     // to back) with the same base filename in DCIM. We keep a reference to
     // the MPO entry itself so anaglyph/cross-eye viewing can lazily decode
-    // its two frames -- the MPO never gets its own card in the grid.
+    // its two frames -- the MPO never gets its own card in the grid. Match
+    // is scoped to the same folder, since filenames like HNI_0012.JPG repeat
+    // across different numbered DCIM subfolders.
+    function dcimDirKey(relPath) {
+      var parts = (relPath || "").replace(/\\/g, "/").split("/");
+      parts.pop();
+      return parts.join("/").toLowerCase();
+    }
     var mpoEntries = {};
     entries.forEach(function (e) {
       if (!/\.mpo$/i.test(e.name)) return;
       var path = (e.relPath || "").replace(/\\/g, "/").toLowerCase();
       if (path.indexOf("dcim/") === -1) return;
-      mpoEntries[e.name.replace(/\.[^.]+$/, "").toLowerCase()] = e;
+      var key = dcimDirKey(e.relPath) + "/" + e.name.replace(/\.[^.]+$/, "").toLowerCase();
+      mpoEntries[key] = e;
     });
 
     entries.forEach(function (e) {
@@ -969,7 +977,7 @@
       var m = /^(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/.exec(e.name);
       
       if (isCameraDir) {
-        var mpoEntry = isVideo ? null : mpoEntries[e.name.replace(/\.[^.]+$/, "").toLowerCase()];
+        var mpoEntry = isVideo ? null : mpoEntries[dcimDirKey(e.relPath) + "/" + e.name.replace(/\.[^.]+$/, "").toLowerCase()];
         result.push({ id: e.relPath || e.name, source: "camera", timestamp: m ? m[1] : null, slot: null,
                       top: e, topRight: null, bot: null, mpo: mpoEntry || null, isCombined: false, has3D: !!mpoEntry, isVideo: isVideo, fallbackName: e.name });
       } else if (isDsDir && !isVideo) {
