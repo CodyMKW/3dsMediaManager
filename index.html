@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3ds Media Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0e13;
+    --bg-2: #121319;
+    --panel: #191b24;
+    --panel-hover: #202230;
+    --panel-active: #262940;
+    --border: #2a2c3a;
+    --border-soft: #21232f;
+    --text: #edeef4;
+    --text-dim: #8d90a3;
+    --text-faint: #5a5d70;
+    --accent: #7fe0ff;
+    --accent-strong: #c7f4ff;
+    --violet: #b39dff;
+    --star: #ffca4a;
+    --danger: #ff7a7a;
+    --danger-strong: #ffb3b3;
+    --ok: #7bdb9e;
+    --radius-lg: 20px;
+    --radius-md: 14px;
+    --radius-sm: 9px;
+    --shadow: 0 12px 30px rgba(0,0,0,0.35);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    min-height: 100%;
+  }
+  a { color: inherit; }
+  button { font-family: inherit; }
+  ::selection { background: rgba(127,224,255,0.25); }
+
+  /* ---------- header ---------- */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    padding: 46px 24px 34px;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: -40% -10% auto -10%;
+    height: 220%;
+    background:
+      radial-gradient(480px 220px at 8% 20%, rgba(127,224,255,0.16), transparent 60%),
+      linear-gradient(115deg, transparent 46%, rgba(179,157,255,0.10) 58%, transparent 72%);
+    pointer-events: none;
+  }
+  .hero-inner {
+    position: relative;
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .wordmark { display: flex; align-items: center; gap: 14px; }
+  .wordmark h1 { margin: 0; font-size: 30px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.1; }
+  .wordmark .sub { margin: 2px 0 0; font-size: 13.5px; color: var(--text-dim); font-weight: 500; }
+  .hero-note { font-size: 13px; color: var(--text-dim); max-width: 300px; text-align: right; line-height: 1.5; }
+  .hero-note strong { color: var(--text); font-weight: 600; }
+  @media (max-width: 620px) { .hero-note { text-align: left; max-width: none; } }
+
+  /* ---------- layout ---------- */
+  .page { max-width: 1100px; margin: 0 auto; padding: 0 24px 90px; }
+
+  /* ---------- source tabs ---------- */
+  .source-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 18px 0 0;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .source-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    border: 1px solid var(--border-soft);
+    border-bottom: none;
+    background: var(--bg-2);
+    color: var(--text-dim);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .source-tab .n { font-size: 11.5px; color: var(--text-faint); }
+  .source-tab.active { background: var(--panel); color: var(--text); border-color: var(--border); }
+  .source-tab.active .n { color: var(--text-dim); }
+  .source-tab svg { width: 15px; height: 15px; }
+
+  /* ---------- toolbar ---------- */
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(13,14,19,0.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border-soft);
+    border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md);
+    padding: 14px 18px;
+    margin: 0 0 26px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 15px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--panel-hover); border-color: #3a3d50; }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+  .btn.primary { background: linear-gradient(180deg, #8ee8ff, #63cdec); border-color: transparent; color: #04303c; font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.05); }
+  .btn.ghost { background: transparent; }
+  .btn.small { padding: 6px 11px; font-size: 12.5px; }
+  .btn.danger-ghost { color: var(--danger-strong); border-color: rgba(255,122,122,0.35); }
+  .btn.danger-ghost:hover { background: rgba(255,122,122,0.08); }
+  .btn svg { width: 16px; height: 16px; flex: none; }
+
+  .seg { display: inline-flex; padding: 3px; background: var(--panel); border: 1px solid var(--border); border-radius: calc(var(--radius-sm) + 3px); gap: 2px; }
+  .seg button { border: none; background: transparent; color: var(--text-dim); font-size: 13px; font-weight: 500; font-family: inherit; padding: 7px 13px; border-radius: var(--radius-sm); cursor: pointer; }
+  .seg button.active { background: var(--panel-active); color: var(--text); }
+  .seg button:hover:not(.active) { color: var(--text); }
+  .seg button[hidden] { display: none; }
+
+  .toolbar-spacer { flex: 1; }
+  .count-pill { font-size: 12.5px; color: var(--text-dim); padding: 6px 4px; }
+
+  /* ---------- empty state ---------- */
+  .empty { margin-top: 20px; padding: 60px 30px; text-align: center; border: 1px dashed var(--border); border-radius: var(--radius-lg); background: var(--bg-2); }
+  .empty.drag-over { border-color: var(--accent); background: rgba(127,224,255,0.05); }
+  .empty svg.icon { width: 54px; height: 54px; color: var(--text-faint); margin-bottom: 18px; }
+  .empty h2 { margin: 0 0 10px; font-size: 19px; font-weight: 600; }
+  .empty p { margin: 0 auto 22px; max-width: 480px; color: var(--text-dim); font-size: 14px; line-height: 1.65; }
+  .empty code { background: var(--panel); border: 1px solid var(--border); padding: 1px 7px; border-radius: 6px; font-size: 12.5px; }
+  .empty .altline { margin-top: 18px; font-size: 12.5px; color: var(--text-faint); }
+  .empty .altline button { background: none; border: none; color: var(--accent); font: inherit; font-size: 12.5px; cursor: pointer; text-decoration: underline; padding: 0; }
+
+  /* ---------- grid ---------- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 14px; }
+  .card { position: relative; background: var(--panel); border: 1px solid var(--border-soft); border-radius: var(--radius-md); overflow: hidden; cursor: pointer; transition: border-color 0.12s ease, transform 0.08s ease; }
+  .card:hover { border-color: #3a3d50; }
+  .card:active { transform: scale(0.98); }
+  .card .thumb-wrap { position: relative; aspect-ratio: 5 / 3; background: #06070a; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .card img, .card video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card .decode-err { font-size: 11px; color: var(--danger-strong); padding: 8px; text-align: center; }
+  .badge { position: absolute; top: 8px; right: 8px; font-size: 10.5px; font-weight: 600; padding: 3px 7px; border-radius: 999px; letter-spacing: 0.02em; }
+  .badge.b-3d { background: rgba(127,224,255,0.16); color: var(--accent-strong); border: 1px solid rgba(127,224,255,0.3); }
+  .badge.b-merged { background: rgba(179,157,255,0.16); color: var(--violet); border: 1px solid rgba(179,157,255,0.3); }
+  .badge.b-raw { background: rgba(255,202,74,0.14); color: var(--star); border: 1px solid rgba(255,202,74,0.3); }
+  .badge.b-video { background: rgba(255,122,122,0.16); color: var(--danger-strong); border: 1px solid rgba(255,122,122,0.3); }
+  .star-btn { position: absolute; top: 6px; left: 6px; width: 28px; height: 28px; border-radius: 50%; border: none; background: rgba(10,11,15,0.55); color: rgba(255,255,255,0.75); display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease; z-index: 2; }
+  .card:hover .star-btn, .star-btn.active { opacity: 1; }
+  .star-btn.active { color: var(--star); background: rgba(10,11,15,0.65); }
+  .star-btn svg { width: 15px; height: 15px; }
+  .card .cap { padding: 8px 10px 9px; font-size: 11.5px; color: var(--text-dim); display: flex; justify-content: space-between; gap: 6px; }
+  .card .cap .date { color: var(--text); font-weight: 500; }
+  .card .cap .time { color: var(--text-faint); }
+
+  /* ---------- lightbox ---------- */
+  .lightbox { position: fixed; inset: 0; z-index: 100; background: rgba(6,7,10,0.88); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; padding: 24px; padding-top: calc(24px + env(safe-area-inset-top, 0px)); padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+  .lightbox.open { display: flex; }
+  .lb-shell { width: 100%; max-width: 960px; max-height: 100%; display: flex; flex-direction: column; gap: 14px; }
+  .lb-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .lb-title { font-size: 14px; color: var(--text-dim); }
+  .lb-title strong { color: var(--text); font-weight: 600; }
+  .lb-close { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); background: var(--panel); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
+  .lb-close:hover { background: var(--panel-hover); }
+  .lb-stage { position: relative; background: #06070a; border-radius: var(--radius-lg); border: 1px solid var(--border-soft); overflow: hidden; display: flex; align-items: center; justify-content: center; min-height: 220px; }
+  .lb-stage img.main, .lb-stage video.main { max-width: 100%; max-height: 60vh; display: block; }
+  .lb-stage .side-by-side { display: flex; width: 100%; }
+  .lb-stage .side-by-side img { width: 50%; max-height: 60vh; object-fit: contain; }
+  .lb-stage .err { color: var(--danger-strong); font-size: 13px; padding: 30px; text-align: center; }
+  .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.14); background: rgba(10,11,15,0.5); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; }
+  .lb-nav:hover { background: rgba(10,11,15,0.75); }
+  .lb-nav.prev { left: 12px; }
+  .lb-nav.next { right: 12px; }
+  .lb-nav svg { width: 18px; height: 18px; }
+  .lb-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .lb-controls .seg { font-size: 12.5px; }
+  .lb-hint { font-size: 12px; color: var(--text-faint); margin-left: auto; }
+
+  /* ---------- frame player (for AVI clips) ---------- */
+  .frame-player { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; padding: 16px; }
+  .frame-player img { max-width: 100%; max-height: 55vh; display: block; border-radius: 8px; }
+  .frame-player .fp-bar { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 420px; }
+  .frame-player .fp-bar input[type="range"] { flex: 1; accent-color: var(--accent); }
+
+  /* ---------- slideshow ---------- */
+  .slideshow { position: fixed; inset: 0; z-index: 200; background: #000; display: none; align-items: center; justify-content: center; }
+  .slideshow.open { display: flex; }
+  .slideshow #ssStage { display: flex; align-items: center; justify-content: center; max-width: 92vw; max-height: 82vh; }
+  .slideshow img, .slideshow video { max-width: 92vw; max-height: 82vh; object-fit: contain; animation: ssfade 0.4s ease; }
+  .slideshow .frame-player img { max-height: 74vh; }
+  @keyframes ssfade { from { opacity: 0; } to { opacity: 1; } }
+  .ss-bar { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; background: rgba(20,21,28,0.8); border: 1px solid var(--border); padding: 8px 12px; border-radius: 999px; }
+  .ss-bar select { background: transparent; color: var(--text); border: none; font-family: inherit; font-size: 12.5px; }
+  .ss-cap { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); font-size: 12.5px; color: rgba(255,255,255,0.65); }
+
+  /* ---------- toast ---------- */
+  .toast-wrap { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 300; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+  .toast { background: var(--panel); border: 1px solid var(--border); color: var(--text); font-size: 13px; padding: 9px 16px; border-radius: 999px; box-shadow: var(--shadow); animation: toastin 0.18s ease; }
+  @keyframes toastin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  footer.credit { max-width: 1100px; margin: 40px auto 0; padding: 0 24px; font-size: 12px; color: var(--text-faint); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="wordmark">
+      <div>
+        <h1>3ds Media Manager</h1>
+        <p class="sub">Browse, sort and star your 3DS and DS screenshots on any device</p>
+      </div>
+    </div>
+    <p class="hero-note">Everything runs <strong>in this browser tab</strong>. Your screenshots are never uploaded anywhere.</p>
+  </div>
+</header>
+
+<div class="source-tabs" id="sourceTabs" style="display:none">
+  <button class="source-tab active" data-tab="3ds">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h1M9 18h1"/></svg>
+    3DS <span class="n" id="tab3dsCount"></span>
+  </button>
+  <button class="source-tab" data-tab="ds">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 4v16M16 4v16"/></svg>
+    DS <span class="n" id="tabDsCount"></span>
+  </button>
+  <button class="source-tab" data-tab="camera">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    Nintendo 3DS Camera <span class="n" id="tabCameraCount"></span>
+  </button>
+</div>
+
+<div class="page">
+
+  <div class="toolbar" id="toolbar" style="display:none">
+    <button class="btn primary" id="openBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
+      Open again
+    </button>
+
+    <div class="seg" id="filterSeg" role="group" aria-label="Filter">
+      <button data-filter="all" class="active">All</button>
+      <button data-filter="3d" id="filter3dBtn">3D</button>
+      <button data-filter="2d" id="filter2dBtn">2D</button>
+      <button data-filter="fav">Starred</button>
+    </div>
+
+    <button class="btn ghost" id="sortBtn" title="Toggle sort order">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M4 12h7M4 17h4M17 4v16m0 0-4-4m4 4 4-4"/></svg>
+      <span id="sortLabel">Newest first</span>
+    </button>
+
+    <button class="btn ghost" id="slideshowBtn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18l15-9L5 3Z"/></svg>
+      Slideshow
+    </button>
+
+    <div class="toolbar-spacer"></div>
+    <span class="count-pill" id="countPill"></span>
+  </div>
+
+  <input type="file" id="fileInput" webkitdirectory multiple style="display:none">
+  <input type="file" id="tarInput" style="display:none">
+
+  <div class="empty" id="emptyState">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
+    <h2>Plug in your SD card and open it</h2>
+    <p>
+      Select the <strong>root of the SD card</strong> (the top-level folder, not a
+      subfolder). 3ds Media Manager automatically looks for
+      <code>luma/screenshots</code>, <code>3ds/Comet/ds_screenshots</code>, 
+      <code>_nds/nds-bootstrap/screenshots.tar</code>, and <code>DCIM</code> inside it and loads whichever
+      of those it finds &mdash; nothing else on the card is touched or read.
+    </p>
+    <button class="btn primary" id="emptyOpenBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
+      Open SD card
+    </button>
+    <p class="altline">Just have the raw <code>screenshots.tar</code> on its own? <button id="emptyTarBtn">Open that file instead</button></p>
+  </div>
+
+  <div class="grid" id="grid" style="display:none"></div>
+</div>
+
+<footer class="credit">
+  <span>Fan-made companion app for the managing screenshots on the Nintendo 3DS &mdash; not affiliated with Nintendo.</span>
+  <span>Sound off, always private.</span>
+</footer>
+
+<div class="lightbox" id="lightbox" aria-hidden="true">
+  <div class="lb-shell">
+    <div class="lb-top">
+      <div class="lb-title"><strong id="lbTitleDate">&nbsp;</strong> <span id="lbTitleTime"></span></div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button class="btn ghost" id="lbFavBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 17.3-6.16 3.6 1.64-6.99L2 9.24l7.12-.61L12 2l2.88 6.63 7.12.61-5.48 4.67 1.64 6.99Z"/></svg>
+          <span id="lbFavLabel">Star</span>
+        </button>
+        <button class="lb-close" id="lbClose" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="lb-stage" id="lbStage">
+      <button class="lb-nav prev" id="lbPrev" aria-label="Previous">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <div id="lbImageArea"></div>
+      <button class="lb-nav next" id="lbNext" aria-label="Next">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+    </div>
+
+    <div class="lb-controls">
+      <div class="seg" id="viewModeSeg"></div>
+      <button class="btn ghost" id="mergeBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v7H4zM4 13h16v7H4z"/></svg>
+        Merge &amp; download
+      </button>
+      <button class="btn ghost" id="downloadBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0-4-4m4 4 4-4M4 21h16"/></svg>
+        Download
+      </button>
+      <button class="btn danger-ghost" id="removeBtn"></button>
+      <span class="lb-hint">&larr; &rarr; to browse &middot; Esc to close</span>
+    </div>
+  </div>
+</div>
+
+<div class="slideshow" id="slideshow" aria-hidden="true">
+  <div class="ss-cap" id="ssCap"></div>
+  <div id="ssStage"></div>
+  <div class="ss-bar">
+    <button class="btn ghost small" id="ssPlayPause">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="ssPlayIcon"><path d="M5 3v18l15-9L5 3Z"/></svg>
+    </button>
+    <select id="ssInterval">
+      <option value="2000">2s</option>
+      <option value="4000" selected>4s</option>
+      <option value="7000">7s</option>
+    </select>
+    <button class="btn ghost small" id="ssExit">Exit</button>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ================= BMP / raw pixel decoding ================= */
+  function readCString(bytes, offset, len) {
+    var s = "";
+    for (var i = 0; i < len; i++) {
+      var c = bytes[offset + i];
+      if (c === 0) break;
+      s += String.fromCharCode(c);
+    }
+    return s;
+  }
+
+  function decodePixelData(buffer, pixelStart, width, height, bpp, topDown) {
+    var dv = new DataView(buffer);
+    var bytesPerPx = bpp / 8;
+    var srcRowBytes = (width * bytesPerPx + 3) & ~3;
+    if (pixelStart + srcRowBytes * height > buffer.byteLength) {
+      throw new Error("Truncated pixel data");
+    }
+    var out = new Uint8ClampedArray(width * height * 4);
+    for (var row = 0; row < height; row++) {
+      var rowOff = pixelStart + row * srcRowBytes;
+      var dstRow = topDown ? row : (height - 1 - row);
+      var dstBase = dstRow * width * 4;
+      if (bpp === 24) {
+        for (var x = 0; x < width; x++) {
+          var po = rowOff + x * 3;
+          var b = dv.getUint8(po), g = dv.getUint8(po + 1), r = dv.getUint8(po + 2);
+          var di = dstBase + x * 4;
+          out[di] = r; out[di + 1] = g; out[di + 2] = b; out[di + 3] = 255;
+        }
+      } else if (bpp === 16) {
+        for (var x2 = 0; x2 < width; x2++) {
+          var v = dv.getUint16(rowOff + x2 * 2, true);
+          var r5 = (v >> 11) & 0x1F, g6 = (v >> 5) & 0x3F, b5 = v & 0x1F;
+          var r2 = (r5 << 3) | (r5 >> 2), g2 = (g6 << 2) | (g6 >> 4), b2 = (b5 << 3) | (b5 >> 2);
+          var di2 = dstBase + x2 * 4;
+          out[di2] = r2; out[di2 + 1] = g2; out[di2 + 2] = b2; out[di2 + 3] = 255;
+        }
+      } else if (bpp === 32) {
+        for (var x3 = 0; x3 < width; x3++) {
+          var po3 = rowOff + x3 * 4;
+          var b3 = dv.getUint8(po3), g3 = dv.getUint8(po3 + 1), r3 = dv.getUint8(po3 + 2);
+          var di3 = dstBase + x3 * 4;
+          out[di3] = r3; out[di3 + 1] = g3; out[di3 + 2] = b3; out[di3 + 3] = 255;
+        }
+      } else {
+        throw new Error("Unsupported bit depth (" + bpp + ")");
+      }
+    }
+    return { width: width, height: height, data: out };
+  }
+
+  function decodeBmpFromBuffer(buffer, base) {
+    base = base || 0;
+    var dv = new DataView(buffer);
+    if (base + 54 > buffer.byteLength) throw new Error("File too small to be a BMP");
+    if (dv.getUint8(base) !== 0x42 || dv.getUint8(base + 1) !== 0x4D) {
+      throw new Error("Not a BMP file (bad signature)");
+    }
+    var dataOffset = dv.getUint32(base + 10, true);
+    var dibSize = dv.getUint32(base + 14, true);
+    var width = dv.getInt32(base + 18, true);
+    var heightRaw = dv.getInt32(base + 22, true);
+    var bpp = dv.getUint16(base + 28, true);
+
+    if (dibSize < 40) throw new Error("Unsupported BMP DIB header");
+    if (bpp !== 24 && bpp !== 16) throw new Error("Unsupported BMP bit depth (" + bpp + ")");
+    if (width <= 0) throw new Error("Invalid BMP width");
+    var topDown = heightRaw < 0;
+    var height = topDown ? -heightRaw : heightRaw;
+    if (height <= 0) throw new Error("Invalid BMP height");
+
+    return decodePixelData(buffer, base + dataOffset, width, height, bpp, topDown);
+  }
+
+  function decodedToDataURL(decoded) {
+    var canvas = document.createElement("canvas");
+    canvas.width = decoded.width;
+    canvas.height = decoded.height;
+    var ctx = canvas.getContext("2d");
+    var imgData = ctx.createImageData(decoded.width, decoded.height);
+    imgData.data.set(decoded.data);
+    ctx.putImageData(imgData, 0, 0);
+    return canvas.toDataURL("image/png");
+  }
+
+  /* ================= AVI (Motion-JPEG / raw DIB) parsing ================= */
+  function fourCC(dv, off) {
+    return String.fromCharCode(dv.getUint8(off), dv.getUint8(off + 1), dv.getUint8(off + 2), dv.getUint8(off + 3));
+  }
+
+  // Walks a RIFF/AVI container just far enough to find the video stream's
+  // format + framerate and the byte ranges of each of its frame chunks.
+  // Supports Motion-JPEG streams (frames are plain JPEGs) and uncompressed
+  // DIB streams (frames decode the same way as our BMP pixel data). Other
+  // codecs (Cinepak, Xvid, etc.) aren't decodable in a browser, so those
+  // throw a clear error instead of producing a blank player.
+  function parseAviStructure(buffer) {
+    var dv = new DataView(buffer);
+    if (buffer.byteLength < 12 || fourCC(dv, 0) !== "RIFF" || fourCC(dv, 8) !== "AVI ") {
+      throw new Error("Not a RIFF/AVI file");
+    }
+    var streams = [];
+    var frames = [];
+
+    function walkChunks(start, end) {
+      var p = start;
+      while (p + 8 <= end) {
+        var id = fourCC(dv, p);
+        var size = dv.getUint32(p + 4, true);
+        var dataStart = p + 8;
+        if (dataStart + size > buffer.byteLength) break;
+        if (id === "LIST") {
+          var listType = fourCC(dv, dataStart);
+          if (listType === "movi") {
+            walkMovi(dataStart + 4, dataStart + size);
+          } else {
+            walkChunks(dataStart + 4, dataStart + size);
+          }
+        } else if (id === "strh") {
+          streams.push({ fccType: fourCC(dv, dataStart), fps: 15, compression: "", width: 0, height: 0, bitCount: 0, topDown: false });
+          var s = streams[streams.length - 1];
+          var dwScale = dv.getUint32(dataStart + 20, true);
+          var dwRate = dv.getUint32(dataStart + 24, true);
+          if (dwScale) s.fps = dwRate / dwScale;
+        } else if (id === "strf") {
+          var cur = streams[streams.length - 1];
+          if (cur && cur.fccType === "vids" && dataStart + 20 <= buffer.byteLength) {
+            cur.width = dv.getInt32(dataStart + 4, true);
+            var rawH = dv.getInt32(dataStart + 8, true);
+            cur.topDown = rawH < 0;
+            cur.height = Math.abs(rawH);
+            cur.bitCount = dv.getUint16(dataStart + 14, true);
+            cur.compression = fourCC(dv, dataStart + 16).replace(/\u0000+$/, "");
+          }
+        }
+        p = dataStart + size + (size % 2);
+      }
+    }
+
+    function walkMovi(start, end) {
+      var p = start;
+      while (p + 8 <= end) {
+        var id = fourCC(dv, p);
+        var size = dv.getUint32(p + 4, true);
+        var dataStart = p + 8;
+        if (dataStart + size > buffer.byteLength) break;
+        if (id === "LIST") {
+          walkMovi(dataStart + 4, dataStart + size);
+        } else {
+          var streamNum = parseInt(id.substr(0, 2), 10);
+          var tag = id.substr(2, 2);
+          if (!isNaN(streamNum) && (tag === "dc" || tag === "db")) {
+            frames.push({ streamIndex: streamNum, offset: dataStart, size: size });
+          }
+        }
+        p = dataStart + size + (size % 2);
+      }
+    }
+
+    walkChunks(12, buffer.byteLength);
+
+    var vidIndex = -1;
+    for (var i = 0; i < streams.length; i++) { if (streams[i].fccType === "vids") { vidIndex = i; break; } }
+    if (vidIndex === -1) throw new Error("No video stream found in this file.");
+    var info = streams[vidIndex];
+    var vidFrames = frames.filter(function (f) { return f.streamIndex === vidIndex; });
+    if (!vidFrames.length) throw new Error("No frame data found in this file.");
+
+    var comp = (info.compression || "").toUpperCase();
+    var mode = null;
+    if (comp === "MJPG" || comp === "JPEG" || comp === "JPG") mode = "mjpeg";
+    else if (comp === "" && info.bitCount > 0) mode = "dib";
+
+    if (!mode) throw new Error("This clip uses the \u201c" + (comp || "raw") + "\u201d codec, which can't be decoded in a browser.");
+
+    return {
+      buffer: buffer, frames: vidFrames, fps: info.fps || 15,
+      width: info.width, height: info.height, bitCount: info.bitCount,
+      topDown: info.topDown, mode: mode, cache: []
+    };
+  }
+
+  // Decodes (and caches) a single frame of a parsed AVI on demand, so we
+  // never have to eagerly decode a whole clip just to show a thumbnail.
+  function decodeAviFrame(parsed, index) {
+    if (parsed.cache[index]) return parsed.cache[index];
+    var f = parsed.frames[index];
+    if (!f) return Promise.reject(new Error("Frame out of range"));
+    var result;
+    try {
+      if (parsed.mode === "mjpeg") {
+        var dv = new DataView(parsed.buffer, f.offset, Math.min(4, f.size));
+        if (dv.getUint8(0) !== 0xFF || dv.getUint8(1) !== 0xD8) throw new Error("Bad JPEG frame");
+        var blob = new Blob([parsed.buffer.slice(f.offset, f.offset + f.size)], { type: "image/jpeg" });
+        var url = URL.createObjectURL(blob);
+        objectUrls.push(url);
+        result = Promise.resolve(url);
+      } else {
+        var decoded = decodePixelData(parsed.buffer, f.offset, parsed.width, parsed.height, parsed.bitCount, parsed.topDown);
+        result = Promise.resolve(decodedToDataURL(decoded));
+      }
+    } catch (e) {
+      result = Promise.reject(e);
+    }
+    parsed.cache[index] = result;
+    return result;
+  }
+
+  function parseAviFromEntry(entry) {
+    return entry.getFile().then(function (file) { return file.arrayBuffer(); }).then(function (buf) {
+      return parseAviStructure(buf);
+    });
+  }
+
+  /* ================= tar parsing ================= */
+  function parseTar(buffer) {
+    var bytes = new Uint8Array(buffer);
+    var pos = 0;
+    var slots = [];
+    var slotNum = 0;
+    var guard = 0;
+    while (pos + 512 <= bytes.length && guard < 4096) {
+      guard++;
+      var allZero = true;
+      for (var i = 0; i < 512; i++) { if (bytes[pos + i] !== 0) { allZero = false; break; } }
+      if (allZero) break;
+
+      var sizeStr = readCString(bytes, pos + 124, 12).trim();
+      var size = parseInt(sizeStr, 8);
+      if (!isFinite(size) || size < 0) break;
+      var dataOffset = pos + 512;
+      slotNum++;
+
+      if (size >= 2 && dataOffset + 2 <= bytes.length &&
+          bytes[dataOffset] === 0x42 && bytes[dataOffset + 1] === 0x4D) {
+        slots.push({ slot: slotNum, byteOffset: dataOffset, size: size });
+      }
+
+      if (size === 0) break;
+      pos = dataOffset + (Math.ceil(size / 512) * 512);
+    }
+    return slots;
+  }
+
+  /* ================= entry -> image / video URL ================= */
+  function imageURLForEntry(entry) {
+    if (entry.kind === "tarslot") {
+      return Promise.resolve().then(function () {
+        var decoded = decodeBmpFromBuffer(entry.tarBuffer, entry.byteOffset);
+        return decodedToDataURL(decoded);
+      });
+    }
+    var name = entry.name.toLowerCase();
+    if (name.slice(-4) === ".bmp") {
+      return entry.getFile().then(function (f) { return f.arrayBuffer(); }).then(function (buf) {
+        return decodedToDataURL(decodeBmpFromBuffer(buf, 0));
+      });
+    }
+    return entry.getFile().then(function (f) { return trackedObjectURL(f); });
+  }
+
+  function loadImageElFromEntry(entry) {
+    return imageURLForEntry(entry).then(function (url) {
+      return new Promise(function (resolve, reject) {
+        var img = new Image();
+        img.onload = function () { resolve(img); };
+        img.onerror = function () { reject(new Error("Couldn't load image")); };
+        img.src = url;
+      });
+    });
+  }
+
+  /* ---------------- state ---------------- */
+  var pairs = [];
+  var visible = [];
+  var favorites = {};
+  var filterMode = "all";
+  var sortOldestFirst = false;
+  var sourceTab = "3ds";
+  var currentIndex = -1;
+  var viewMode = "mono";
+  var objectUrls = [];
+  var slideshowTimer = null;
+  var slideshowPlaying = false;
+  var currentLbPlayer = null;
+  var currentSsPlayer = null;
+
+  var FAV_KEY = "comet-companion:favorites:v1";
+
+  function loadFavorites() {
+    try {
+      var raw = localStorage.getItem(FAV_KEY);
+      favorites = raw ? JSON.parse(raw) : {};
+    } catch (e) { favorites = {}; }
+  }
+  function saveFavorites() {
+    try { localStorage.setItem(FAV_KEY, JSON.stringify(favorites)); } catch (e) {}
+  }
+  
+  function favKey(p) { 
+    // Ignore the changing webkit root directory path by relying on the unique 
+    // timestamp, slot number, or base filename to persist across SD card reloads.
+    var uniqueIdentifier = p.timestamp || (p.slot !== null ? "slot_" + p.slot : (p.fallbackName || baseName(p.id)));
+    return p.source + ":" + uniqueIdentifier; 
+  }
+
+  /* ---------------- dom refs ---------------- */
+  var $ = function (id) { return document.getElementById(id); };
+  var grid = $("grid");
+  var emptyState = $("emptyState");
+  var toolbar = $("toolbar");
+  var sourceTabs = $("sourceTabs");
+  var tab3dsCount = $("tab3dsCount");
+  var tabDsCount = $("tabDsCount");
+  var tabCameraCount = $("tabCameraCount");
+  var openBtn = $("openBtn");
+  var emptyOpenBtn = $("emptyOpenBtn");
+  var emptyTarBtn = $("emptyTarBtn");
+  var fileInput = $("fileInput");
+  var tarInput = $("tarInput");
+  var filterSeg = $("filterSeg");
+  var filter3dBtn = $("filter3dBtn");
+  var filter2dBtn = $("filter2dBtn");
+  var sortBtn = $("sortBtn");
+  var sortLabel = $("sortLabel");
+  var slideshowBtn = $("slideshowBtn");
+  var countPill = $("countPill");
+
+  var lightbox = $("lightbox");
+  var lbTitleDate = $("lbTitleDate");
+  var lbTitleTime = $("lbTitleTime");
+  var lbImageArea = $("lbImageArea");
+  var lbClose = $("lbClose");
+  var lbPrev = $("lbPrev");
+  var lbNext = $("lbNext");
+  var lbFavBtn = $("lbFavBtn");
+  var lbFavLabel = $("lbFavLabel");
+  var viewModeSeg = $("viewModeSeg");
+  var mergeBtn = $("mergeBtn");
+  var downloadBtn = $("downloadBtn");
+  var removeBtn = $("removeBtn");
+
+  var slideshow = $("slideshow");
+  var ssStage = $("ssStage");
+  var ssCap = $("ssCap");
+  var ssPlayPause = $("ssPlayPause");
+  var ssPlayIcon = $("ssPlayIcon");
+  var ssInterval = $("ssInterval");
+  var ssExit = $("ssExit");
+
+  var toastWrap = $("toastWrap");
+
+  /* ---------------- utilities ---------------- */
+  function toast(msg) {
+    var el = document.createElement("div");
+    el.className = "toast";
+    el.textContent = msg;
+    toastWrap.appendChild(el);
+    setTimeout(function () {
+      el.style.transition = "opacity .25s ease";
+      el.style.opacity = "0";
+      setTimeout(function () { el.remove(); }, 260);
+    }, 2400);
+  }
+
+  function trackedObjectURL(file) {
+    var url = URL.createObjectURL(file);
+    objectUrls.push(url);
+    return url;
+  }
+
+  function baseName(path) {
+    var parts = path.split("/");
+    return parts[parts.length - 1];
+  }
+
+  function formatTimestamp(ts) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})/.exec(ts);
+    if (!m) return { date: ts, time: "" };
+    var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    var y = m[1], mo = parseInt(m[2], 10), d = parseInt(m[3], 10);
+    var h = parseInt(m[4], 10), mi = m[5];
+    var ampm = h >= 12 ? "PM" : "AM";
+    var h12 = h % 12; if (h12 === 0) h12 = 12;
+    return { date: months[mo - 1] + " " + d + ", " + y, time: h12 + ":" + mi + " " + ampm };
+  }
+
+  function displayLabel(p) {
+    if (p.timestamp) return formatTimestamp(p.timestamp);
+    if (p.slot != null) return { date: "Slot " + p.slot, time: "nds-bootstrap" };
+    return { date: p.fallbackName || "Media", time: "" };
+  }
+
+  function sortKey(p) {
+    if (p.timestamp) return "b_" + p.timestamp;
+    if (p.slot != null) return "a_" + String(p.slot).padStart(4, "0");
+    return "a_" + (p.fallbackName || "");
+  }
+
+  /* ---------------- grouping ---------------- */
+  function classifyAndGroup(entries) {
+    var byName = {};
+    entries.forEach(function (e) { if (e.kind !== "tarslot") byName[e.name] = e; });
+    var used = {};
+    var result = [];
+
+    entries.forEach(function (e) {
+      if (e.kind === "tarslot") return;
+      var name = e.name;
+      var isTop = /_top\.(bmp|jpg|jpeg|png)$/i.test(name);
+      var isCmb = /_cmb\.(bmp|jpg|jpeg|png)$/i.test(name);
+      if (!isTop && !isCmb) return;
+
+      var ts = name.replace(/_top\.(bmp|jpg|jpeg|png)$/i, "").replace(/_cmb\.(bmp|jpg|jpeg|png)$/i, "");
+      var pair = { id: e.relPath || name, source: "3ds", timestamp: ts, slot: null,
+                   top: e, topRight: null, bot: null, isCombined: isCmb, has3D: false, isVideo: false };
+      used[name] = true;
+
+      if (!isCmb) {
+        var ext = (name.match(/\.(bmp|jpg|jpeg|png)$/i) || [, "bmp"])[1];
+        var trName = ts + "_top_right." + ext, botName = ts + "_bot." + ext;
+        if (byName[trName]) { pair.topRight = byName[trName]; pair.has3D = true; used[trName] = true; }
+        if (byName[botName]) { pair.bot = byName[botName]; used[botName] = true; }
+        if (!pair.topRight || !pair.bot) {
+          Object.keys(byName).forEach(function (n) {
+            if (!pair.topRight && n.toLowerCase() === trName.toLowerCase()) { pair.topRight = byName[n]; pair.has3D = true; used[n] = true; }
+            if (!pair.bot && n.toLowerCase() === botName.toLowerCase()) { pair.bot = byName[n]; used[n] = true; }
+          });
+        }
+      }
+      result.push(pair);
+    });
+
+    // Nintendo 3DS camera photos taken in 3D save both a .JPG (2D) and a .MPO
+    // (the stereo file) with the same base filename in DCIM. We use the MPO's
+    // presence just to flag its matching JPG as 3D-capable for filtering --
+    // the MPO itself never gets its own card in the grid.
+    var mpoBaseNames = {};
+    entries.forEach(function (e) {
+      if (!/\.mpo$/i.test(e.name)) return;
+      var path = (e.relPath || "").replace(/\\/g, "/").toLowerCase();
+      if (path.indexOf("dcim/") === -1) return;
+      mpoBaseNames[e.name.replace(/\.[^.]+$/, "").toLowerCase()] = true;
+    });
+
+    entries.forEach(function (e) {
+      if (e.kind === "tarslot" || used[e.name]) return;
+      if (/\.mpo$/i.test(e.name)) return;
+      var isOrphanCompanion = /_top_right\.(bmp|jpg|jpeg|png)$/i.test(e.name) || /_bot\.(bmp|jpg|jpeg|png)$/i.test(e.name);
+      if (isOrphanCompanion) return;
+      
+      var path = (e.relPath || "").replace(/\\/g, "/").toLowerCase();
+      var isCameraDir = path.indexOf("dcim/") !== -1;
+      var isDsDir = path.indexOf("comet/ds_screenshots/") !== -1 || path === e.name.toLowerCase();
+      var isVideo = /\.avi$/i.test(e.name);
+
+      var m = /^(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/.exec(e.name);
+      
+      if (isCameraDir) {
+        var has3D = isVideo ? false : !!mpoBaseNames[e.name.replace(/\.[^.]+$/, "").toLowerCase()];
+        result.push({ id: e.relPath || e.name, source: "camera", timestamp: m ? m[1] : null, slot: null,
+                      top: e, topRight: null, bot: null, isCombined: false, has3D: has3D, isVideo: isVideo, fallbackName: e.name });
+      } else if (isDsDir && !isVideo) {
+        result.push({ id: e.relPath || e.name, source: "ds-file", timestamp: m ? m[1] : null, slot: null,
+                      top: e, topRight: null, bot: null, isCombined: false, has3D: false, isVideo: false, fallbackName: e.name });
+      }
+    });
+
+    entries.forEach(function (e) {
+      if (e.kind !== "tarslot") return;
+      result.push({ id: e.relPath || e.name, source: "ds-tar", timestamp: null, slot: e.slot,
+                    top: e, topRight: null, bot: null, isCombined: false, has3D: false, isVideo: false });
+    });
+
+    result.sort(function (a, b) { var ka = sortKey(a), kb = sortKey(b); return ka < kb ? 1 : ka > kb ? -1 : 0; });
+    return result;
+  }
+
+  /* ---------------- loading files ---------------- */
+  function entriesFromFileList(fileList) {
+    var entries = [];
+    for (var i = 0; i < fileList.length; i++) {
+      var f = fileList[i];
+      var rel = f.webkitRelativePath || f.name;
+      var name = baseName(rel);
+      if (!/\.(bmp|jpg|jpeg|png|tar|avi|mpo)$/i.test(name)) continue;
+      (function (file, relPath, nm) {
+        entries.push({ name: nm, relPath: relPath, getFile: function () { return Promise.resolve(file); } });
+      })(f, rel, name);
+    }
+    return entries;
+  }
+
+  function expandTarEntry(fd) {
+    return fd.getFile().then(function (file) { return file.arrayBuffer(); }).then(function (buffer) {
+      var slots = parseTar(buffer);
+      return slots.map(function (s) {
+        return { name: fd.name.replace(/\.tar$/i, "") + "_slot" + String(s.slot).padStart(2, "0") + ".bmp",
+                  relPath: fd.relPath + "#slot" + s.slot, kind: "tarslot",
+                  tarBuffer: buffer, byteOffset: s.byteOffset, slot: s.slot, size: s.size };
+      });
+    }).catch(function (err) {
+      toast("Couldn't read " + fd.name + " as an nds-bootstrap tar.");
+      return [];
+    });
+  }
+
+  function loadEntries(rawEntries) {
+    var tarEntries = rawEntries.filter(function (e) { 
+        if (!/\.tar$/i.test(e.name)) return false;
+        var path = (e.relPath || "").replace(/\\/g, "/").toLowerCase();
+        return path.indexOf("_nds/nds-bootstrap/screenshots.tar") !== -1 || e.name.toLowerCase() === "screenshots.tar";
+    });
+    var imageEntries = rawEntries.filter(function (e) { return !/\.tar$/i.test(e.name); });
+
+    Promise.all(tarEntries.map(expandTarEntry)).then(function (groups) {
+      var tarSlotEntries = [].concat.apply([], groups);
+      var allEntries = imageEntries.concat(tarSlotEntries);
+      pairs = classifyAndGroup(allEntries);
+      loadFavorites();
+
+      if (pairs.length === 0) {
+        toast("No compatible media found in what you opened.");
+        return;
+      }
+
+      emptyState.style.display = "none";
+      grid.style.display = "grid";
+      toolbar.style.display = "flex";
+      sourceTabs.style.display = "flex";
+      slideshowBtn.disabled = false;
+
+      var has3ds = pairs.some(function (p) { return p.source === "3ds"; });
+      var hasDs = pairs.some(function (p) { return p.source === "ds-file" || p.source === "ds-tar"; });
+      var hasCamera = pairs.some(function (p) { return p.source === "camera"; });
+      
+      sourceTab = has3ds ? "3ds" : hasDs ? "ds" : "camera";
+      updateSourceTabButtons();
+
+      filterMode = "all";
+      Array.prototype.forEach.call(filterSeg.querySelectorAll("button"), function (b) {
+        b.classList.toggle("active", b.getAttribute("data-filter") === "all");
+      });
+
+      rebuildAndRender();
+      
+      var n3d = pairs.filter(function (p) { return p.source === "3ds"; }).length;
+      var nds = pairs.filter(function (p) { return p.source === "ds-file" || p.source === "ds-tar"; }).length;
+      var nCam = pairs.filter(function (p) { return p.source === "camera"; }).length;
+      
+      var parts = [];
+      if (n3d) parts.push(n3d + " 3DS");
+      if (nds) parts.push(nds + " DS");
+      if (nCam) parts.push(nCam + " Camera");
+      
+      toast("Loaded " + parts.join(", ") + " files.");
+    });
+  }
+
+  openBtn.addEventListener("click", requestOpen);
+  emptyOpenBtn.addEventListener("click", requestOpen);
+  emptyTarBtn.addEventListener("click", function () { tarInput.click(); });
+
+  function requestOpen() { fileInput.click(); }
+
+  fileInput.addEventListener("change", function (e) {
+    loadEntries(entriesFromFileList(e.target.files));
+    fileInput.value = "";
+  });
+
+  tarInput.addEventListener("change", function (e) {
+    if (!e.target.files.length) return;
+    var f = e.target.files[0];
+    loadEntries([{ name: f.name, relPath: f.name, getFile: function () { return Promise.resolve(f); } }]);
+    tarInput.value = "";
+  });
+
+  ["dragover", "dragenter"].forEach(function (evt) {
+    document.addEventListener(evt, function (e) { e.preventDefault(); emptyState.classList.add("drag-over"); });
+  });
+  ["dragleave", "drop"].forEach(function (evt) {
+    document.addEventListener(evt, function () { emptyState.classList.remove("drag-over"); });
+  });
+  document.addEventListener("drop", function (e) {
+    e.preventDefault();
+    var items = e.dataTransfer && e.dataTransfer.items;
+    if (items && items.length && items[0].webkitGetAsEntry) {
+      var collected = [];
+      var pending = 0, done = false;
+      function finish() { if (done && pending === 0) loadEntries(collected); }
+      function walk(entry, relPath) {
+        if (entry.isFile) {
+          pending++;
+          entry.file(function (file) {
+            if (/\.(bmp|jpg|jpeg|png|tar|avi|mpo)$/i.test(entry.name)) {
+              collected.push({ name: entry.name, relPath: relPath + entry.name, getFile: function () { return Promise.resolve(file); } });
+            }
+            pending--; finish();
+          }, function () { pending--; finish(); });
+        } else if (entry.isDirectory) {
+          var reader = entry.createReader();
+          pending++;
+          reader.readEntries(function (children) {
+            children.forEach(function (c) { walk(c, relPath + entry.name + "/"); });
+            pending--; finish();
+          }, function () { pending--; finish(); });
+        }
+      }
+      for (var i = 0; i < items.length; i++) {
+        var entry = items[i].webkitGetAsEntry && items[i].webkitGetAsEntry();
+        if (entry) walk(entry, "");
+      }
+      done = true; finish();
+    } else if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+      loadEntries(entriesFromFileList(e.dataTransfer.files));
+    }
+  });
+
+  /* ---------------- source tabs ---------------- */
+  sourceTabs.addEventListener("click", function (e) {
+    var btn = e.target.closest(".source-tab");
+    if (!btn) return;
+    sourceTab = btn.getAttribute("data-tab");
+    updateSourceTabButtons();
+    filterMode = "all";
+    Array.prototype.forEach.call(filterSeg.querySelectorAll("button"), function (b) {
+      b.classList.toggle("active", b.getAttribute("data-filter") === "all");
+    });
+    rebuildAndRender();
+  });
+
+  function updateSourceTabButtons() {
+    Array.prototype.forEach.call(sourceTabs.querySelectorAll(".source-tab"), function (b) {
+      b.classList.toggle("active", b.getAttribute("data-tab") === sourceTab);
+    });
+    tab3dsCount.textContent = pairs.filter(function (p) { return p.source === "3ds"; }).length;
+    tabDsCount.textContent = pairs.filter(function (p) { return p.source === "ds-file" || p.source === "ds-tar"; }).length;
+    tabCameraCount.textContent = pairs.filter(function (p) { return p.source === "camera"; }).length;
+    
+    var show3dFilter = sourceTab === "3ds" || sourceTab === "camera";
+    filter3dBtn.hidden = !show3dFilter;
+    filter2dBtn.hidden = !show3dFilter;
+  }
+
+  /* ---------------- filter / sort ---------------- */
+  filterSeg.addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-filter]");
+    if (!btn) return;
+    filterMode = btn.getAttribute("data-filter");
+    Array.prototype.forEach.call(filterSeg.querySelectorAll("button"), function (b) {
+      b.classList.toggle("active", b === btn);
+    });
+    rebuildAndRender();
+  });
+
+  sortBtn.addEventListener("click", function () {
+    sortOldestFirst = !sortOldestFirst;
+    sortLabel.textContent = sortOldestFirst ? "Oldest first" : "Newest first";
+    rebuildAndRender();
+  });
+
+  function matchesFilter(p) {
+    var pTab = p.source === "3ds" ? "3ds" : p.source === "camera" ? "camera" : "ds";
+    if (pTab !== sourceTab) return false;
+    if (filterMode === "3d") return p.has3D;
+    if (filterMode === "2d") return !p.has3D;
+    if (filterMode === "fav") return !!favorites[favKey(p)];
+    return true;
+  }
+
+  function rebuildAndRender() {
+    visible = pairs.filter(matchesFilter);
+    if (sortOldestFirst) visible = visible.slice().reverse();
+    renderGrid();
+    var label = filterMode === "all" ? "All" : filterMode === "3d" ? "3D only" : filterMode === "2d" ? "2D only" : "Starred";
+    countPill.textContent = visible.length + " " + (visible.length === 1 ? "item" : "items") + " \u00b7 " + label;
+  }
+
+  /* ---------------- grid rendering ---------------- */
+  var thumbObserver = null;
+  function ensureObserver() {
+    if (thumbObserver) return thumbObserver;
+    thumbObserver = new IntersectionObserver(function (entries, obs) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        var el = entry.target;
+        var pairId = el.getAttribute("data-pair-id");
+        var pair = pairs.filter(function (p) { return favKey(p) === pairId; })[0];
+        obs.unobserve(el);
+        if (!pair) return;
+
+        if (pair.isVideo) {
+          parseAviFromEntry(pair.top).then(function (parsed) {
+            return decodeAviFrame(parsed, 0);
+          }).then(function (url) {
+            var img = document.createElement("img");
+            img.src = url;
+            img.alt = el.getAttribute("data-alt") || "";
+            el.replaceWith(img);
+          }).catch(function () {
+            el.innerHTML = '<div class="decode-err">Preview unavailable</div>';
+          });
+          return;
+        }
+
+        imageURLForEntry(pair.top).then(function (url) {
+          var img = document.createElement("img");
+          img.src = url;
+          img.alt = el.getAttribute("data-alt") || "";
+          el.replaceWith(img);
+        }).catch(function () {
+          el.innerHTML = '<div class="decode-err">Couldn\u2019t decode this file</div>';
+        });
+      });
+    }, { rootMargin: "200px" });
+    return thumbObserver;
+  }
+
+  function renderGrid() {
+    grid.innerHTML = "";
+    var obs = ensureObserver();
+    visible.forEach(function (p) {
+      var lbl = displayLabel(p);
+      var card = document.createElement("div");
+      card.className = "card";
+      card.setAttribute("role", "button");
+      card.setAttribute("tabindex", "0");
+
+      var thumbWrap = document.createElement("div");
+      thumbWrap.className = "thumb-wrap";
+
+      var placeholder = document.createElement("div");
+      placeholder.setAttribute("data-pair-id", favKey(p));
+      placeholder.setAttribute("data-alt", "Media from " + lbl.date + " " + lbl.time);
+      thumbWrap.appendChild(placeholder);
+      obs.observe(placeholder);
+
+      if (p.isVideo) {
+        var vb = document.createElement("span"); vb.className = "badge b-video"; vb.textContent = "VIDEO";
+        thumbWrap.appendChild(vb);
+      } else if (p.isCombined) {
+        var mb = document.createElement("span"); mb.className = "badge b-merged"; mb.textContent = "Merged";
+        thumbWrap.appendChild(mb);
+      } else if (p.has3D) {
+        var b3 = document.createElement("span"); b3.className = "badge b-3d"; b3.textContent = "3D";
+        thumbWrap.appendChild(b3);
+      } else if (p.source === "ds-tar") {
+        var br = document.createElement("span"); br.className = "badge b-raw"; br.textContent = "Raw slot";
+        thumbWrap.appendChild(br);
+      }
+
+      var star = document.createElement("button");
+      star.className = "star-btn" + (favorites[favKey(p)] ? " active" : "");
+      star.setAttribute("aria-label", "Toggle favorite");
+      star.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 17.3-6.16 3.6 1.64-6.99L2 9.24l7.12-.61L12 2l2.88 6.63 7.12.61-5.48 4.67 1.64 6.99Z"/></svg>';
+      star.addEventListener("click", function (e) {
+        e.stopPropagation();
+        toggleFavorite(p);
+        star.classList.toggle("active", !!favorites[favKey(p)]);
+      });
+      thumbWrap.appendChild(star);
+
+      var cap = document.createElement("div");
+      cap.className = "cap";
+      cap.innerHTML = '<span class="date">' + lbl.date + '</span><span class="time">' + lbl.time + '</span>';
+
+      card.appendChild(thumbWrap);
+      card.appendChild(cap);
+      card.addEventListener("click", function () { openLightbox(p); });
+      card.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openLightbox(p); }
+      });
+
+      grid.appendChild(card);
+    });
+  }
+
+  function toggleFavorite(p) {
+    var k = favKey(p);
+    if (favorites[k]) delete favorites[k]; else favorites[k] = true;
+    saveFavorites();
+    if (filterMode === "fav") rebuildAndRender();
+  }
+
+  /* ---------------- frame player (used for AVI clips) ---------------- */
+  function cleanupPlayer(player) {
+    if (player && typeof player.cleanup === "function") player.cleanup();
+  }
+
+  function iconPlay() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M5 3v18l15-9L5 3Z"/></svg>'; }
+  function iconPause() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>'; }
+
+  function buildFramePlayer(parsed) {
+    var wrap = document.createElement("div");
+    wrap.className = "frame-player";
+
+    var img = document.createElement("img");
+    wrap.appendChild(img);
+
+    var bar = document.createElement("div");
+    bar.className = "fp-bar";
+    var playBtn = document.createElement("button");
+    playBtn.className = "btn ghost small";
+    var scrub = document.createElement("input");
+    scrub.type = "range"; scrub.min = "0"; scrub.max = String(parsed.frames.length - 1); scrub.value = "0";
+    bar.appendChild(playBtn);
+    bar.appendChild(scrub);
+    wrap.appendChild(bar);
+
+    var idx = 0, playing = false, timer = null, failed = false;
+
+    function showFrame(i) {
+      decodeAviFrame(parsed, i).then(function (url) {
+        img.src = url;
+        scrub.value = String(i);
+      }).catch(function () {
+        if (failed) return;
+        failed = true;
+        pause();
+        var errEl = document.createElement("div");
+        errEl.className = "err";
+        errEl.textContent = "Couldn't decode this clip's frames \u2014 try the Download button instead.";
+        wrap.replaceWith(errEl);
+      });
+    }
+    function tick() { idx = (idx + 1) % parsed.frames.length; showFrame(idx); }
+    function play() { if (failed) return; playing = true; playBtn.innerHTML = iconPause(); clearInterval(timer); timer = setInterval(tick, 1000 / (parsed.fps || 15)); }
+    function pause() { playing = false; playBtn.innerHTML = iconPlay(); clearInterval(timer); }
+
+    playBtn.addEventListener("click", function () { playing ? pause() : play(); });
+    scrub.addEventListener("input", function () { pause(); idx = parseInt(scrub.value, 10); showFrame(idx); });
+
+    showFrame(0);
+    play();
+
+    wrap.cleanup = function () { clearInterval(timer); };
+    return wrap;
+  }
+
+  /* ---------------- lightbox ---------------- */
+  function openLightbox(p) {
+    currentIndex = visible.indexOf(p);
+    viewMode = "mono";
+    renderLightbox();
+    lightbox.classList.add("open");
+    lightbox.setAttribute("aria-hidden", "false");
+  }
+  function closeLightbox() {
+    cleanupPlayer(currentLbPlayer); currentLbPlayer = null;
+    lightbox.classList.remove("open");
+    lightbox.setAttribute("aria-hidden", "true");
+  }
+  lbFavBtn.addEventListener("click", toggleFavoriteCurrent);
+  lbClose.addEventListener("click", closeLightbox);
+  lightbox.addEventListener("click", function (e) { if (e.target === lightbox) closeLightbox(); });
+  lbPrev.addEventListener("click", function () { step(-1); });
+  lbNext.addEventListener("click", function () { step(1); });
+  function step(dir) {
+    if (visible.length === 0) return;
+    currentIndex = (currentIndex + dir + visible.length) % visible.length;
+    viewMode = "mono";
+    renderLightbox();
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if (lightbox.classList.contains("open")) {
+      if (e.key === "Escape") closeLightbox();
+      else if (e.key === "ArrowLeft") step(-1);
+      else if (e.key === "ArrowRight") step(1);
+      else if (e.key === " " || e.key.toLowerCase() === "f") { e.preventDefault(); toggleFavoriteCurrent(); }
+    } else if (slideshow.classList.contains("open")) {
+      if (e.key === "Escape") exitSlideshow();
+      else if (e.key === "ArrowLeft") slideshowStep(-1);
+      else if (e.key === "ArrowRight") slideshowStep(1);
+      else if (e.key === " ") { e.preventDefault(); toggleSlideshowPlay(); }
+    }
+  });
+
+  function toggleFavoriteCurrent() {
+    var p = visible[currentIndex];
+    if (!p) return;
+    toggleFavorite(p);
+    updateFavButton(p);
+  }
+  function updateFavButton(p) {
+    var active = !!favorites[favKey(p)];
+    lbFavBtn.classList.toggle("active", active);
+    lbFavLabel.textContent = active ? "Starred" : "Star";
+    lbFavBtn.style.color = active ? "var(--star)" : "";
+  }
+
+  function renderLightbox() {
+    var p = visible[currentIndex];
+    if (!p) { closeLightbox(); return; }
+    var lbl = displayLabel(p);
+    lbTitleDate.textContent = lbl.date;
+    lbTitleTime.textContent = lbl.time;
+    updateFavButton(p);
+
+    removeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-7 0 1 13a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-13"/></svg> Remove from view';
+
+    viewModeSeg.innerHTML = "";
+    var modes = [];
+    if (p.isVideo) {
+      modes.push({ id: "video", label: "Video" });
+    } else {
+      modes.push({ id: "mono", label: p.source === "3ds" ? "Top screen" : "Screenshot" });
+      if (p.has3D) modes.push({ id: "anaglyph", label: "3D (anaglyph)" }, { id: "side", label: "3D (cross-eye)" });
+      if (p.bot) modes.push({ id: "bottom", label: "Bottom screen" });
+    }
+    if (!modes.some(function (m) { return m.id === viewMode; })) viewMode = modes[0].id;
+
+    var segButtons = [];
+    modes.forEach(function (m) {
+      var b = document.createElement("button");
+      b.textContent = m.label;
+      b.className = m.id === viewMode ? "active" : "";
+      b.addEventListener("click", function () {
+        viewMode = m.id;
+        renderLightboxImage(p);
+        segButtons.forEach(function (entry) { entry.el.classList.toggle("active", entry.id === viewMode); });
+      });
+      segButtons.push({ id: m.id, el: b });
+      viewModeSeg.appendChild(b);
+    });
+
+    mergeBtn.style.display = p.bot ? "inline-flex" : "none";
+    renderLightboxImage(p);
+  }
+
+  function renderLightboxImage(p) {
+    cleanupPlayer(currentLbPlayer); currentLbPlayer = null;
+    lbImageArea.innerHTML = '<div style="color:var(--text-dim); font-size:13px; padding:30px;">Loading&hellip;</div>';
+
+    function showError(msg) {
+      lbImageArea.innerHTML = '<div class="err">' + msg + '</div>';
+    }
+
+    if (p.isVideo) {
+      parseAviFromEntry(p.top).then(function (parsed) {
+        lbImageArea.innerHTML = "";
+        var player = buildFramePlayer(parsed);
+        currentLbPlayer = player;
+        lbImageArea.appendChild(player);
+      }).catch(function (err) {
+        showError((err && err.message) ? err.message : "Couldn't load this video for playback.");
+      });
+      return;
+    }
+
+    if (viewMode === "bottom" && p.bot) {
+      imageURLForEntry(p.bot).then(function (url) {
+        lbImageArea.innerHTML = "";
+        var img = document.createElement("img");
+        img.className = "main"; img.src = url; img.alt = "Bottom screen capture";
+        lbImageArea.appendChild(img);
+      }).catch(function () { showError("Couldn't decode the bottom-screen capture."); });
+      return;
+    }
+    if (viewMode === "side" && p.topRight) {
+      Promise.all([imageURLForEntry(p.top), imageURLForEntry(p.topRight)]).then(function (urls) {
+        lbImageArea.innerHTML = "";
+        var wrap = document.createElement("div");
+        wrap.className = "side-by-side";
+        urls.forEach(function (u) {
+          var img = document.createElement("img"); img.src = u; img.alt = "3D stereo pair frame";
+          wrap.appendChild(img);
+        });
+        lbImageArea.appendChild(wrap);
+      }).catch(function () { showError("Couldn't decode this stereo pair."); });
+      return;
+    }
+    if (viewMode === "anaglyph" && p.topRight) {
+      Promise.all([loadImageElFromEntry(p.top), loadImageElFromEntry(p.topRight)]).then(function (imgs) {
+        var dataUrl = makeAnaglyphFromImages(imgs[0], imgs[1]);
+        lbImageArea.innerHTML = "";
+        var img = document.createElement("img");
+        img.className = "main"; img.src = dataUrl; img.alt = "Red/cyan 3D anaglyph (use red-cyan glasses)";
+        lbImageArea.appendChild(img);
+      }).catch(function () { showError("Couldn't build the anaglyph."); });
+      return;
+    }
+    imageURLForEntry(p.top).then(function (url) {
+      lbImageArea.innerHTML = "";
+      var img = document.createElement("img");
+      img.className = "main"; img.src = url;
+      img.alt = p.source === "3ds" ? "Top screen capture" : "DS screenshot";
+      lbImageArea.appendChild(img);
+    }).catch(function () { showError("Couldn't decode this file."); });
+  }
+
+  function makeAnaglyphFromImages(left, right) {
+    var w = Math.min(left.naturalWidth, right.naturalWidth) || left.naturalWidth;
+    var h = Math.min(left.naturalHeight, right.naturalHeight) || left.naturalHeight;
+    var lc = document.createElement("canvas"); lc.width = w; lc.height = h;
+    var rc = document.createElement("canvas"); rc.width = w; rc.height = h;
+    lc.getContext("2d").drawImage(left, 0, 0, w, h);
+    rc.getContext("2d").drawImage(right, 0, 0, w, h);
+    var lData = lc.getContext("2d").getImageData(0, 0, w, h);
+    var rData = rc.getContext("2d").getImageData(0, 0, w, h);
+    var out = lc.getContext("2d").createImageData(w, h);
+    for (var i = 0; i < out.data.length; i += 4) {
+      out.data[i] = lData.data[i];
+      out.data[i + 1] = rData.data[i + 1];
+      out.data[i + 2] = rData.data[i + 2];
+      out.data[i + 3] = 255;
+    }
+    var outCanvas = document.createElement("canvas");
+    outCanvas.width = w; outCanvas.height = h;
+    outCanvas.getContext("2d").putImageData(out, 0, 0);
+    return outCanvas.toDataURL("image/png");
+  }
+
+  /* ---------------- merge top + bottom, download ---------------- */
+  function mergeAndDownload(p) {
+    if (!p.bot) return;
+    Promise.all([loadImageElFromEntry(p.top), loadImageElFromEntry(p.bot)]).then(function (imgs) {
+      var top = imgs[0], bot = imgs[1];
+      var w = Math.max(top.naturalWidth, bot.naturalWidth);
+      var h = top.naturalHeight + bot.naturalHeight + 8;
+      var canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(top, (w - top.naturalWidth) / 2, 0);
+      ctx.drawImage(bot, (w - bot.naturalWidth) / 2, top.naturalHeight + 8);
+      canvas.toBlob(function (blob) { triggerDownload(blob, p.timestamp + "_merged.png"); }, "image/png");
+    }).catch(function () { toast("Couldn't merge those two images."); });
+  }
+
+  function triggerDownload(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
+
+  mergeBtn.addEventListener("click", function () {
+    var p = visible[currentIndex];
+    if (p) mergeAndDownload(p);
+  });
+
+  downloadBtn.addEventListener("click", function () {
+    var p = visible[currentIndex];
+    if (!p) return;
+    var source = (viewMode === "bottom" && p.bot) ? p.bot : p.top;
+    if (source.kind === "tarslot") {
+      var slice = source.tarBuffer.slice(source.byteOffset, source.byteOffset + source.size);
+      triggerDownload(new Blob([slice], { type: "image/bmp" }), source.name);
+      return;
+    }
+    source.getFile().then(function (f) { triggerDownload(f, source.name); });
+  });
+
+  removeBtn.addEventListener("click", function () {
+    var p = visible[currentIndex];
+    if (!p) return;
+    pairs = pairs.filter(function (x) { return x !== p; });
+    closeLightbox();
+    updateSourceTabButtons();
+    rebuildAndRender();
+    toast("Removed from this view (your files on disk are untouched).");
+  });
+
+  /* ---------------- slideshow ---------------- */
+  slideshowBtn.addEventListener("click", function () {
+    if (visible.length === 0) { toast("Nothing to show yet."); return; }
+    currentIndex = 0;
+    startSlideshow();
+  });
+
+  function startSlideshow() {
+    slideshow.classList.add("open");
+    slideshow.setAttribute("aria-hidden", "false");
+    slideshowPlaying = true;
+    setSSIcon();
+    renderSlideshowFrame();
+    scheduleNext();
+  }
+  function exitSlideshow() {
+    cleanupPlayer(currentSsPlayer); currentSsPlayer = null;
+    slideshow.classList.remove("open");
+    slideshow.setAttribute("aria-hidden", "true");
+    clearTimeout(slideshowTimer);
+    slideshowPlaying = false;
+  }
+  ssExit.addEventListener("click", exitSlideshow);
+
+  function scheduleNext() {
+    clearTimeout(slideshowTimer);
+    if (!slideshowPlaying) return;
+    var ms = parseInt(ssInterval.value, 10) || 4000;
+    slideshowTimer = setTimeout(function () { slideshowStep(1); scheduleNext(); }, ms);
+  }
+  function slideshowStep(dir) {
+    if (visible.length === 0) return;
+    currentIndex = (currentIndex + dir + visible.length) % visible.length;
+    renderSlideshowFrame();
+  }
+  function renderSlideshowFrame() {
+    cleanupPlayer(currentSsPlayer); currentSsPlayer = null;
+    var p = visible[currentIndex];
+    if (!p) return;
+    var lbl = displayLabel(p);
+    ssCap.textContent = lbl.date + " \u00b7 " + lbl.time + "  (" + (currentIndex + 1) + " / " + visible.length + ")";
+
+    if (p.isVideo) {
+      parseAviFromEntry(p.top).then(function (parsed) {
+        ssStage.innerHTML = "";
+        var player = buildFramePlayer(parsed);
+        currentSsPlayer = player;
+        ssStage.appendChild(player);
+      }).catch(function () {
+        ssStage.innerHTML = "";
+        toast("This clip can't be played here \u2014 try downloading it instead.");
+      });
+      return;
+    }
+
+    imageURLForEntry(p.top).then(function (url) {
+      ssStage.innerHTML = "";
+      var img = document.createElement("img");
+      img.src = url;
+      img.alt = "Media from " + lbl.date;
+      ssStage.appendChild(img);
+    }).catch(function () { toast("Couldn't decode this file."); });
+  }
+  function toggleSlideshowPlay() {
+    slideshowPlaying = !slideshowPlaying;
+    setSSIcon();
+    if (slideshowPlaying) scheduleNext(); else clearTimeout(slideshowTimer);
+  }
+  ssPlayPause.addEventListener("click", toggleSlideshowPlay);
+  ssInterval.addEventListener("change", function () { if (slideshowPlaying) scheduleNext(); });
+  function setSSIcon() {
+    ssPlayIcon.innerHTML = slideshowPlaying ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M5 3v18l15-9L5 3Z"/>';
+  }
+
+  /* ---------------- init ---------------- */
+  loadFavorites();
+})();
+</script>
+</body>
+</html>
