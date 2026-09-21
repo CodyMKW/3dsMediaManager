@@ -15,7 +15,7 @@ If you've ever used a custom firmware screenshot tool (Luma, Comet, nds-bootstra
   - `DCIM` (actual Nintendo 3DS camera photos and videos)
 - **Sorts stuff into tabs** — 3DS / DS / Camera — so you're not scrolling through everything at once
 - **Understands 3D screenshots** — if a shot has a top-left and top-right frame, you can view it as a red/cyan anaglyph or side-by-side cross-eye pair
-- **Flags 3D camera photos too** — the 3DS camera saves a `.MPO` alongside the `.JPG` for any photo taken in 3D mode. This app just uses the MPO's presence to tag the matching photo as 3D (you won't see the MPO itself cluttering the grid)
+- **Handles 3D camera photos too** — the 3DS camera saves a `.MPO` alongside the `.JPG` for any photo taken in 3D mode. This app decodes the MPO's two stereo frames on the fly so you can view those photos as an anaglyph or cross-eye pair too (you won't see the MPO itself cluttering the grid)
 - **Plays back `.AVI` clips** from the 3DS camera, frame by frame, in browser — no plugins
 - **Merge & download** — stick a top and bottom screen together into one PNG
 - **Star your favorites** (saved locally, so it remembers between sessions) and filter down to just starred stuff
