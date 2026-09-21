@@ -696,9 +696,20 @@
   
   function favKey(p) { 
     // Ignore the changing webkit root directory path by relying on the unique 
-    // timestamp, slot number, or base filename to persist across SD card reloads.
-    var uniqueIdentifier = p.timestamp || (p.slot !== null ? "slot_" + p.slot : (p.fallbackName || baseName(p.id)));
+    // timestamp, slot number, or a stable relative path to persist across SD card reloads.
+    var uniqueIdentifier = p.timestamp || (p.slot !== null ? "slot_" + p.slot : (stablePathId(p.id) || p.fallbackName || baseName(p.id)));
     return p.source + ":" + uniqueIdentifier; 
+  }
+
+  function stablePathId(relPath) {
+    // Camera filenames (HNI_0073.JPG) repeat across different numbered DCIM
+    // subfolders, so the bare filename alone isn't unique -- keep everything
+    // after the top-level (volume-name) folder, since that's the part that's
+    // actually stable between browsing sessions.
+    if (!relPath) return "";
+    var parts = relPath.replace(/\\/g, "/").split("/").filter(Boolean);
+    if (parts.length > 1) parts.shift();
+    return parts.join("/");
   }
 
   /* ---------------- dom refs ---------------- */
