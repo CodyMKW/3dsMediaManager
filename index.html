@@ -728,7 +728,7 @@
     if (p.topRight) return Promise.resolve([p.top, p.topRight]);
     if (p.mpo) {
       return parseMpoFromEntry(p.mpo).then(function (parsed) {
-        return [mpoFrameEntry(parsed, 0), mpoFrameEntry(parsed, 1)];
+        return [mpoFrameEntry(parsed, 1), mpoFrameEntry(parsed, 0)];
       });
     }
     return Promise.reject(new Error("No stereo data available for this photo."));
@@ -1149,7 +1149,7 @@
     tabDsCount.textContent = pairs.filter(function (p) { return p.source === "ds-file" || p.source === "ds-tar"; }).length;
     tabCameraCount.textContent = pairs.filter(function (p) { return p.source === "camera"; }).length;
     
-    var show3dFilter = sourceTab === "3ds" || sourceTab === "camera";
+    var show3dFilter = sourceTab === "camera";
     filter3dBtn.hidden = !show3dFilter;
     filter2dBtn.hidden = !show3dFilter;
   }
