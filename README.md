@@ -9,10 +9,10 @@ If you've ever used a custom firmware screenshot tool (Luma, Comet, nds-bootstra
 ## What it does
 
 - **Reads straight off the SD card** using the File System Access APIs — you pick the root of the card and it automatically finds:
-  - `luma/screenshots` (regular 3DS screenshots, including 3D top-screen + bottom-screen pairs)
+  - `luma/screenshots` (Luma3DS screenshots, including top-screen + bottom-screen pairs)
   - `3ds/Comet/ds_screenshots` (DS screenshots)
   - `_nds/nds-bootstrap/screenshots.tar` (raw nds-bootstrap screenshot slots)
-  - `DCIM` (actual 3DS camera photos and videos)
+  - `DCIM` (actual Nintendo 3DS camera photos and videos)
 - **Sorts stuff into tabs** — 3DS / DS / Camera — so you're not scrolling through everything at once
 - **Understands 3D screenshots** — if a shot has a top-left and top-right frame, you can view it as a red/cyan anaglyph or side-by-side cross-eye pair
 - **Flags 3D camera photos too** — the 3DS camera saves a `.MPO` alongside the `.JPG` for any photo taken in 3D mode. This app just uses the MPO's presence to tag the matching photo as 3D (you won't see the MPO itself cluttering the grid)
