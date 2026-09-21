@@ -1355,12 +1355,16 @@
       return;
     }
     if (viewMode === "side" && p.topRight) {
-      Promise.all([imageURLForEntry(p.top), imageURLForEntry(p.topRight)]).then(function (urls) {
+      // True cross-eye viewing: crossing your eyes swaps which image each eye
+      // lands on, so the right-eye shot belongs on the left and the left-eye
+      // shot belongs on the right.
+      Promise.all([imageURLForEntry(p.topRight), imageURLForEntry(p.top)]).then(function (urls) {
         lbImageArea.innerHTML = "";
         var wrap = document.createElement("div");
         wrap.className = "side-by-side";
-        urls.forEach(function (u) {
-          var img = document.createElement("img"); img.src = u; img.alt = "3D stereo pair frame";
+        var labels = ["Right-eye frame", "Left-eye frame"];
+        urls.forEach(function (u, idx) {
+          var img = document.createElement("img"); img.src = u; img.alt = labels[idx];
           wrap.appendChild(img);
         });
         lbImageArea.appendChild(wrap);
