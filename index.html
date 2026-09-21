@@ -639,12 +639,115 @@
     return slots;
   }
 
+  /* ================= MPO (stereo JPEG) parsing ================= */
+  // An MPO file is just two complete JPEGs (left-eye, then right-eye) stored
+  // back to back. We walk each JPEG's marker structure so we can find exactly
+  // where the first image's data ends and the second begins, without being
+  // fooled by a thumbnail JPEG embedded inside the first image's EXIF data.
+  function parseMpoFrames(buffer) {
+    var bytes = new Uint8Array(buffer);
+    var len = bytes.length;
+    var frames = [];
+
+    function findNextSOI(from) {
+      for (var i = from; i + 1 < len; i++) {
+        if (bytes[i] === 0xFF && bytes[i + 1] === 0xD8) return i;
+      }
+      return -1;
+    }
+
+    var pos = findNextSOI(0);
+    while (pos !== -1 && pos + 4 <= len) {
+      var start = pos;
+      var p = pos + 2;
+      var eoi = -1;
+
+      while (p + 4 <= len) {
+        if (bytes[p] !== 0xFF) { p++; continue; }
+        var marker = bytes[p + 1];
+
+        if (marker === 0xD8) break; // unexpected nested SOI -- bail on this frame
+        if (marker === 0xD9) { eoi = p + 2; break; } // EOI with no scan data
+
+        if ((marker >= 0xD0 && marker <= 0xD7) || marker === 0x01 || marker === 0x00) {
+          p += 2;
+          continue;
+        }
+
+        if (marker === 0xDA) {
+          var segLen = (bytes[p + 2] << 8) | bytes[p + 3];
+          p += 2 + segLen;
+          // scan the entropy-coded data for the real EOI, skipping 0xFF00
+          // stuffed bytes and restart markers along the way
+          while (p + 2 <= len) {
+            if (bytes[p] === 0xFF) {
+              var b2 = bytes[p + 1];
+              if (b2 === 0x00 || (b2 >= 0xD0 && b2 <= 0xD7)) { p += 2; continue; }
+              if (b2 === 0xD9) eoi = p + 2;
+              break;
+            }
+            p++;
+          }
+          break;
+        }
+
+        if (p + 4 > len) break;
+        var segLen2 = (bytes[p + 2] << 8) | bytes[p + 3];
+        if (segLen2 < 2) break;
+        p += 2 + segLen2;
+      }
+
+      if (eoi === -1) break;
+      frames.push({ offset: start, length: eoi - start });
+      pos = findNextSOI(eoi);
+    }
+
+    return frames;
+  }
+
+  function parseMpoFromEntry(entry) {
+    if (!entry._mpoFramesPromise) {
+      entry._mpoFramesPromise = entry.getFile().then(function (file) { return file.arrayBuffer(); }).then(function (buffer) {
+        var frames = parseMpoFrames(buffer);
+        if (frames.length < 2) throw new Error("Couldn't find two stereo frames in this MPO.");
+        return { buffer: buffer, frames: frames };
+      });
+    }
+    return entry._mpoFramesPromise;
+  }
+
+  function mpoFrameEntry(parsed, index) {
+    var f = parsed.frames[index];
+    return { kind: "mpoframe", name: "mpo_frame_" + index + ".jpg", mpoBuffer: parsed.buffer, offset: f.offset, length: f.length };
+  }
+
+  // Resolves to [leftEntry, rightEntry] whether the stereo pair comes from
+  // Luma's separate _top/_top_right files or a 3DS camera .MPO that needs
+  // decoding first.
+  function getStereoEntries(p) {
+    if (p.topRight) return Promise.resolve([p.top, p.topRight]);
+    if (p.mpo) {
+      return parseMpoFromEntry(p.mpo).then(function (parsed) {
+        return [mpoFrameEntry(parsed, 0), mpoFrameEntry(parsed, 1)];
+      });
+    }
+    return Promise.reject(new Error("No stereo data available for this photo."));
+  }
+
   /* ================= entry -> image / video URL ================= */
   function imageURLForEntry(entry) {
     if (entry.kind === "tarslot") {
       return Promise.resolve().then(function () {
         var decoded = decodeBmpFromBuffer(entry.tarBuffer, entry.byteOffset);
         return decodedToDataURL(decoded);
+      });
+    }
+    if (entry.kind === "mpoframe") {
+      return Promise.resolve().then(function () {
+        var blob = new Blob([entry.mpoBuffer.slice(entry.offset, entry.offset + entry.length)], { type: "image/jpeg" });
+        var url = URL.createObjectURL(blob);
+        objectUrls.push(url);
+        return url;
       });
     }
     var name = entry.name.toLowerCase();
@@ -840,15 +943,16 @@
     });
 
     // Nintendo 3DS camera photos taken in 3D save both a .JPG (2D) and a .MPO
-    // (the stereo file) with the same base filename in DCIM. We use the MPO's
-    // presence just to flag its matching JPG as 3D-capable for filtering --
-    // the MPO itself never gets its own card in the grid.
-    var mpoBaseNames = {};
+    // (the actual stereo file, containing a left-eye and right-eye JPEG back
+    // to back) with the same base filename in DCIM. We keep a reference to
+    // the MPO entry itself so anaglyph/cross-eye viewing can lazily decode
+    // its two frames -- the MPO never gets its own card in the grid.
+    var mpoEntries = {};
     entries.forEach(function (e) {
       if (!/\.mpo$/i.test(e.name)) return;
       var path = (e.relPath || "").replace(/\\/g, "/").toLowerCase();
       if (path.indexOf("dcim/") === -1) return;
-      mpoBaseNames[e.name.replace(/\.[^.]+$/, "").toLowerCase()] = true;
+      mpoEntries[e.name.replace(/\.[^.]+$/, "").toLowerCase()] = e;
     });
 
     entries.forEach(function (e) {
@@ -865,9 +969,9 @@
       var m = /^(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/.exec(e.name);
       
       if (isCameraDir) {
-        var has3D = isVideo ? false : !!mpoBaseNames[e.name.replace(/\.[^.]+$/, "").toLowerCase()];
+        var mpoEntry = isVideo ? null : mpoEntries[e.name.replace(/\.[^.]+$/, "").toLowerCase()];
         result.push({ id: e.relPath || e.name, source: "camera", timestamp: m ? m[1] : null, slot: null,
-                      top: e, topRight: null, bot: null, isCombined: false, has3D: has3D, isVideo: isVideo, fallbackName: e.name });
+                      top: e, topRight: null, bot: null, mpo: mpoEntry || null, isCombined: false, has3D: !!mpoEntry, isVideo: isVideo, fallbackName: e.name });
       } else if (isDsDir && !isVideo) {
         result.push({ id: e.relPath || e.name, source: "ds-file", timestamp: m ? m[1] : null, slot: null,
                       top: e, topRight: null, bot: null, isCombined: false, has3D: false, isVideo: false, fallbackName: e.name });
@@ -1365,11 +1469,13 @@
       }).catch(function () { showError("Couldn't decode the bottom-screen capture."); });
       return;
     }
-    if (viewMode === "side" && p.topRight) {
+    if (viewMode === "side" && (p.topRight || p.mpo)) {
       // True cross-eye viewing: crossing your eyes swaps which image each eye
       // lands on, so the right-eye shot belongs on the left and the left-eye
       // shot belongs on the right.
-      Promise.all([imageURLForEntry(p.topRight), imageURLForEntry(p.top)]).then(function (urls) {
+      getStereoEntries(p).then(function (stereo) {
+        return Promise.all([imageURLForEntry(stereo[1]), imageURLForEntry(stereo[0])]);
+      }).then(function (urls) {
         lbImageArea.innerHTML = "";
         var wrap = document.createElement("div");
         wrap.className = "side-by-side";
@@ -1379,17 +1485,19 @@
           wrap.appendChild(img);
         });
         lbImageArea.appendChild(wrap);
-      }).catch(function () { showError("Couldn't decode this stereo pair."); });
+      }).catch(function (err) { showError((err && err.message) ? err.message : "Couldn't decode this stereo pair."); });
       return;
     }
-    if (viewMode === "anaglyph" && p.topRight) {
-      Promise.all([loadImageElFromEntry(p.top), loadImageElFromEntry(p.topRight)]).then(function (imgs) {
+    if (viewMode === "anaglyph" && (p.topRight || p.mpo)) {
+      getStereoEntries(p).then(function (stereo) {
+        return Promise.all([loadImageElFromEntry(stereo[0]), loadImageElFromEntry(stereo[1])]);
+      }).then(function (imgs) {
         var dataUrl = makeAnaglyphFromImages(imgs[0], imgs[1]);
         lbImageArea.innerHTML = "";
         var img = document.createElement("img");
         img.className = "main"; img.src = dataUrl; img.alt = "Red/cyan 3D anaglyph (use red-cyan glasses)";
         lbImageArea.appendChild(img);
-      }).catch(function () { showError("Couldn't build the anaglyph."); });
+      }).catch(function (err) { showError((err && err.message) ? err.message : "Couldn't build the anaglyph."); });
       return;
     }
     imageURLForEntry(p.top).then(function (url) {
