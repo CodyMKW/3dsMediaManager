@@ -786,6 +786,7 @@
   var slideshowPlaying = false;
   var currentLbPlayer = null;
   var currentSsPlayer = null;
+  var loadGeneration = 0;
 
   var FAV_KEY = "comet-companion:favorites:v1";
 
@@ -802,7 +803,11 @@
   function favKey(p) { 
     // Ignore the changing webkit root directory path by relying on the unique 
     // timestamp, slot number, or a stable relative path to persist across SD card reloads.
-    var uniqueIdentifier = p.timestamp || (p.slot !== null ? "slot_" + p.slot : (stablePathId(p.id) || p.fallbackName || baseName(p.id)));
+    // Camera photos always use the path-based id, even once a timestamp is filled in
+    // later from EXIF/AVI metadata, so their key never shifts after the fact.
+    var uniqueIdentifier = p.source === "camera"
+      ? (stablePathId(p.id) || p.fallbackName || baseName(p.id))
+      : (p.timestamp || (p.slot !== null ? "slot_" + p.slot : (stablePathId(p.id) || p.fallbackName || baseName(p.id))));
     return p.source + ":" + uniqueIdentifier; 
   }
 
@@ -998,6 +1003,187 @@
     return result;
   }
 
+  /* ================= camera photo/video date extraction ================= */
+  // 3DS camera files are just named HNI_0001.JPG / .AVI with no date in the
+  // filename, unlike Luma screenshots. The date actually lives inside the
+  // file: EXIF metadata for photos, an IDIT chunk for videos. We only ever
+  // read a small header slice of the file (via File.slice), never the whole
+  // thing, so this stays cheap even on a folder with thousands of photos.
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+
+  function readIfd(dv, tiffStart, ifdOffset, little) {
+    var tags = {};
+    if (ifdOffset + 2 > dv.byteLength) return { tags: tags };
+    var count = dv.getUint16(ifdOffset, little);
+    var entryBase = ifdOffset + 2;
+    for (var i = 0; i < count; i++) {
+      var entryStart = entryBase + i * 12;
+      if (entryStart + 12 > dv.byteLength) break;
+      var tag = dv.getUint16(entryStart, little);
+      var type = dv.getUint16(entryStart + 2, little);
+      var numValues = dv.getUint32(entryStart + 4, little);
+      if (type === 2) { // ASCII string
+        var byteLen = numValues;
+        var valueOffset = byteLen <= 4 ? entryStart + 8 : tiffStart + dv.getUint32(entryStart + 8, little);
+        if (valueOffset >= 0 && valueOffset + byteLen <= dv.byteLength) {
+          var str = "";
+          for (var j = 0; j < byteLen; j++) {
+            var c = dv.getUint8(valueOffset + j);
+            if (c === 0) break;
+            str += String.fromCharCode(c);
+          }
+          tags[tag] = str;
+        }
+      } else if (type === 4) { // LONG -- used for the pointer to the Exif sub-IFD
+        tags[tag] = dv.getUint32(entryStart + 8, little);
+      }
+    }
+    return { tags: tags };
+  }
+
+  function parseTiffDate(dv, tiffStart) {
+    if (tiffStart + 8 > dv.byteLength) return null;
+    var byteOrder = dv.getUint16(tiffStart);
+    if (byteOrder !== 0x4949 && byteOrder !== 0x4D4D) return null;
+    var little = byteOrder === 0x4949;
+    if (dv.getUint16(tiffStart + 2, little) !== 42) return null;
+    var ifd0Offset = dv.getUint32(tiffStart + 4, little);
+    var ifd0 = readIfd(dv, tiffStart, tiffStart + ifd0Offset, little);
+    var dateTime = ifd0.tags[0x0132]; // DateTime
+    var exifIfdPointer = ifd0.tags[0x8769]; // pointer to Exif SubIFD
+    if (exifIfdPointer != null) {
+      var exifIfd = readIfd(dv, tiffStart, tiffStart + exifIfdPointer, little);
+      if (exifIfd.tags[0x9003]) dateTime = exifIfd.tags[0x9003]; // DateTimeOriginal, preferred
+    }
+    return dateTime || null;
+  }
+
+  function parseExifDateFromBuffer(buffer) {
+    var dv = new DataView(buffer);
+    if (buffer.byteLength < 4 || dv.getUint16(0) !== 0xFFD8) return null;
+    var offset = 2;
+    while (offset + 4 <= buffer.byteLength) {
+      if (dv.getUint8(offset) !== 0xFF) { offset++; continue; }
+      var marker = dv.getUint8(offset + 1);
+      if (marker === 0xD8 || marker === 0x01 || (marker >= 0xD0 && marker <= 0xD7)) { offset += 2; continue; }
+      if (marker === 0xD9 || marker === 0xDA) break; // EOI or start of scan data -- no more markers to check
+      var segLen = dv.getUint16(offset + 2);
+      if (marker === 0xE1) {
+        var segStart = offset + 4;
+        if (segStart + 6 <= buffer.byteLength &&
+            dv.getUint8(segStart) === 0x45 && dv.getUint8(segStart + 1) === 0x78 &&
+            dv.getUint8(segStart + 2) === 0x69 && dv.getUint8(segStart + 3) === 0x66 &&
+            dv.getUint8(segStart + 4) === 0x00 && dv.getUint8(segStart + 5) === 0x00) {
+          var date = parseTiffDate(dv, segStart + 6);
+          if (date) return date;
+        }
+      }
+      offset += 2 + segLen;
+    }
+    return null;
+  }
+
+  function exifDateToTimestamp(exifDate) {
+    var m = /^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(exifDate || "");
+    if (!m) return null;
+    return m[1] + "-" + m[2] + "-" + m[3] + "_" + m[4] + "-" + m[5] + "-" + m[6];
+  }
+
+  function readExifDateFromEntry(entry) {
+    return entry.getFile().then(function (file) {
+      var headSize = Math.min(file.size, 131072); // EXIF lives near the start; 128KB comfortably covers it
+      return file.slice(0, headSize).arrayBuffer();
+    }).then(function (buffer) {
+      return parseExifDateFromBuffer(buffer);
+    }).catch(function () { return null; });
+  }
+
+  function parseAviIditDate(buffer) {
+    var dv = new DataView(buffer);
+    var len = buffer.byteLength;
+    if (len < 12 || fourCC(dv, 0) !== "RIFF" || fourCC(dv, 8) !== "AVI ") return null;
+    var p = 12;
+    while (p + 8 <= len) {
+      var id = fourCC(dv, p);
+      var size = dv.getUint32(p + 4, true);
+      var dataStart = p + 8;
+      if (dataStart + size > len) break;
+      if (id === "LIST") {
+        var listType = fourCC(dv, dataStart);
+        if (listType === "movi") break; // any IDIT chunk comes before the media data
+        var sp = dataStart + 4, send = Math.min(dataStart + size, len);
+        while (sp + 8 <= send) {
+          var sid = fourCC(dv, sp);
+          var ssize = dv.getUint32(sp + 4, true);
+          var sdata = sp + 8;
+          if (sdata + ssize > len) break;
+          if (sid === "IDIT") return readCString(new Uint8Array(buffer), sdata, ssize).trim();
+          sp = sdata + ssize + (ssize % 2);
+        }
+      }
+      p = dataStart + size + (size % 2);
+    }
+    return null;
+  }
+
+  function aviIditToTimestamp(iditStr) {
+    if (!iditStr) return null;
+    var m = /^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(iditStr);
+    if (m) return m[1] + "-" + m[2] + "-" + m[3] + "_" + m[4] + "-" + m[5] + "-" + m[6];
+    m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(iditStr);
+    if (m) return m[1] + "-" + m[2] + "-" + m[3] + "_" + m[4] + "-" + m[5] + "-" + m[6];
+    var d = new Date(iditStr);
+    if (!isNaN(d.getTime())) {
+      return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) + "_" +
+             pad2(d.getHours()) + "-" + pad2(d.getMinutes()) + "-" + pad2(d.getSeconds());
+    }
+    return null;
+  }
+
+  function readAviDateFromEntry(entry) {
+    return entry.getFile().then(function (file) {
+      var headSize = Math.min(file.size, 131072);
+      return file.slice(0, headSize).arrayBuffer();
+    }).then(function (buffer) {
+      return parseAviIditDate(buffer);
+    }).catch(function () { return null; });
+  }
+
+  // Runs after the grid's first render so photos show up immediately; once a
+  // batch of real dates comes back, camera pairs get re-sorted and the grid
+  // quietly re-renders with proper dates/times instead of bare filenames.
+  function resolveCameraTimestamps(pairsList, generation) {
+    var targets = pairsList.filter(function (p) { return p.source === "camera" && !p.timestamp; });
+    if (!targets.length) return;
+    var CONCURRENCY = 8;
+    var idx = 0, active = 0, changed = false;
+
+    function settle() {
+      if (generation !== loadGeneration || !changed) return;
+      pairs.sort(function (a, b) { var ka = sortKey(a), kb = sortKey(b); return ka < kb ? 1 : ka > kb ? -1 : 0; });
+      rebuildAndRender();
+    }
+
+    function pump() {
+      if (generation !== loadGeneration) return;
+      while (active < CONCURRENCY && idx < targets.length) {
+        (function (p) {
+          active++;
+          var reader = p.isVideo ? readAviDateFromEntry(p.top) : readExifDateFromEntry(p.top);
+          reader.then(function (rawDate) {
+            var ts = p.isVideo ? aviIditToTimestamp(rawDate) : exifDateToTimestamp(rawDate);
+            if (ts) { p.timestamp = ts; changed = true; }
+          }).catch(function () {}).then(function () {
+            active--;
+            if (idx < targets.length) pump();
+            else if (active === 0) settle();
+          });
+        })(targets[idx++]);
+      }
+    }
+    pump();
+  }
+
   /* ---------------- loading files ---------------- */
   function entriesFromFileList(fileList) {
     var entries = [];
@@ -1028,6 +1214,8 @@
   }
 
   function loadEntries(rawEntries) {
+    loadGeneration++;
+    var myGeneration = loadGeneration;
     var tarEntries = rawEntries.filter(function (e) { 
         if (!/\.tar$/i.test(e.name)) return false;
         var path = (e.relPath || "").replace(/\\/g, "/").toLowerCase();
@@ -1036,6 +1224,7 @@
     var imageEntries = rawEntries.filter(function (e) { return !/\.tar$/i.test(e.name); });
 
     Promise.all(tarEntries.map(expandTarEntry)).then(function (groups) {
+      if (myGeneration !== loadGeneration) return;
       var tarSlotEntries = [].concat.apply([], groups);
       var allEntries = imageEntries.concat(tarSlotEntries);
       pairs = classifyAndGroup(allEntries);
@@ -1076,6 +1265,8 @@
       if (nCam) parts.push(nCam + " Camera");
       
       toast("Loaded " + parts.join(", ") + " files.");
+
+      resolveCameraTimestamps(pairs, myGeneration);
     });
   }
 
